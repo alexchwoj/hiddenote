@@ -1,0 +1,2 @@
+# hiddenote
+Encrypted notepad
