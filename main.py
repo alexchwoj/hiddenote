@@ -27,7 +27,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
 )
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QShortcut, QKeySequence, QFont
+from PyQt6.QtGui import QShortcut, QKeySequence, QFont, QFontDatabase
 
 
 class PasswordDialog(QDialog):
@@ -364,6 +364,9 @@ class HiddeNoteApp(QWidget):
         new_note_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
         new_note_shortcut.activated.connect(self.create_new_note)
 
+        insert_shortcut = QShortcut(QKeySequence("Insert"), self)
+        insert_shortcut.activated.connect(self.create_new_note)
+
         save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         save_shortcut.activated.connect(self.save_current_note)
 
@@ -405,22 +408,18 @@ class HiddeNoteApp(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             self.db_manager.delete_note(title)
 
-            for i in range(self.notes_list.count()):
-                item = self.notes_list.item(i)
-                widget = self.notes_list.itemWidget(item)
-                if widget and widget.findChild(QLabel, "noteTitle").text() == title:
-                    self.notes_list.takeItem(i)
-                    break
-
             if title == self.current_note:
                 self.current_note = None
+                self.edit_tab.textChanged.disconnect()
                 self.edit_tab.clear()
+                self.edit_tab.textChanged.connect(self.on_text_changed)
                 self.preview_tab.clear()
 
-            if self.notes_list.count() > 0:
-                self.notes_list.setCurrentRow(0)
-
             self.load_notes()
+
+            search_text = self.search_input.text()
+            if search_text.strip():
+                self.notes_list.filter_notes(search_text)
 
     def load_notes(self):
         notes = self.db_manager.get_all_notes()
@@ -488,199 +487,254 @@ class HiddeNoteApp(QWidget):
             self.load_notes()
 
 
-def apply_vs_theme(app):
-    app.setStyleSheet("""
-        QWidget {
+def load_custom_fonts():
+    font_dir = os.path.join(os.path.dirname(__file__), "assets", "fonts")
+
+    if not os.path.exists(font_dir):
+        return None
+
+    font_files = [
+        f for f in os.listdir(font_dir) if f.lower().endswith((".ttf", ".otf"))
+    ]
+
+    if not font_files:
+        return None
+
+    loaded_families = {}
+
+    for filename in font_files:
+        font_path = os.path.join(font_dir, filename)
+        font_id = QFontDatabase.addApplicationFont(font_path)
+
+        if font_id != -1:
+            font_families = QFontDatabase.applicationFontFamilies(font_id)
+            for family in font_families:
+                if family not in loaded_families:
+                    loaded_families[family] = []
+                loaded_families[family].append(filename.lower())
+
+    for family, files in loaded_families.items():
+        for preferred in ["regular", "normal", "medium"]:
+            for file in files:
+                if preferred in file:
+                    return family
+        return family
+
+    return None
+
+
+def apply_theme(app, custom_font_family=None):
+    font_family = (
+        f"'{custom_font_family}', 'Cascadia Code', monospace"
+        if custom_font_family
+        else "'Cascadia Code', monospace"
+    )
+
+    app.setStyleSheet(f"""
+        QWidget {{
             background-color: #1E1E1E;
             color: #D4D4D4;
-            font-family: 'Cascadia Code', 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+            font-family: {font_family};
             font-size: 12px;
-        }
+            font-weight: 400;
+        }}
         
-        QLabel {
+        QLabel {{
             color: #CCCCCC;
-            font-weight: normal;
+            font-weight: 400;
             padding: 2px;
             background: transparent;
             border: none;
-        }
+        }}
         
-        QLabel#titleLabel {
+        QLabel#titleLabel {{
             color: #FFFFFF;
             font-size: 15px;
             font-weight: 600;
             padding: 8px;
             margin-bottom: 4px;
             background: transparent;
-            font-family: 'Cascadia Code', 'Segoe UI', sans-serif;
-        }
+            font-family: {font_family};
+        }}
         
-        QDialog {
+        QDialog {{
             background-color: #2D2D30;
             border: 1px solid #3F3F46;
-        }
+        }}
         
-        QFrame {
+        QFrame {{
             background-color: #252526;
             border: none;
-        }
+        }}
         
-        QPushButton {
+        QPushButton {{
             background-color: #0E639C;
             color: #FFFFFF;
             border: none;
             padding: 8px 16px;
             min-width: 80px;
             font-weight: 500;
-            font-family: 'Cascadia Code', 'Segoe UI', sans-serif;
-        }
+            font-family: {font_family};
+        }}
         
-        QPushButton:hover {
+        QPushButton:hover {{
             background-color: #1177BB;
-        }
+        }}
         
-        QPushButton:pressed {
+        QPushButton:pressed {{
             background-color: #094771;
-        }
+        }}
         
-        QPushButton:default {
+        QPushButton:default {{
             background-color: #0E639C;
             border: 2px solid #1177BB;
-        }
+        }}
         
-        QLineEdit {
+        QLineEdit {{
             background-color: #3C3C3C;
             color: #D4D4D4;
             border: 1px solid #3F3F46;
             padding: 8px;
             font-size: 13px;
-            font-family: 'Cascadia Code', 'Cascadia Mono', monospace;
-        }
+            font-weight: 400;
+            font-family: {font_family};
+        }}
         
-        QLineEdit:focus {
+        QLineEdit:focus {{
             border: 1px solid #0E639C;
-        }
+        }}
         
-        QLineEdit[placeholderText] {
+        QLineEdit[placeholderText] {{
             color: #8C8C8C;
-        }
+        }}
         
-        QListWidget {
+        QListWidget {{
             background-color: #252526;
             color: #D4D4D4;
             border: none;
             outline: none;
-            font-family: 'Cascadia Code', 'Cascadia Mono', monospace;
-        }
+            font-weight: 400;
+            font-family: {font_family};
+        }}
         
-        QListWidget::item {
+        QListWidget::item {{
             padding: 0px;
             border: none;
             background: transparent;
-        }
+        }}
         
-        QListWidget::item:selected {
+        QListWidget::item:selected {{
             background-color: #094771;
-        }
+        }}
         
-        QListWidget::item:hover {
+        QListWidget::item:hover {{
             background-color: #2A2D2E;
-        }
+        }}
         
-        QTextEdit, QTextBrowser {
+        QTextEdit, QTextBrowser {{
             background-color: #1E1E1E;
             color: #D4D4D4;
             border: none;
-            font-family: 'Cascadia Code', 'Cascadia Mono', monospace;
+            font-family: {font_family};
             font-size: 13px;
+            font-weight: 400;
             line-height: 1.4;
-        }
+        }}
         
-        QTabWidget::pane {
+        QTabWidget::pane {{
             border: 1px solid #3F3F46;
             background-color: #1E1E1E;
-        }
+        }}
         
-        QTabBar::tab {
+        QTabBar::tab {{
             background-color: #2D2D30;
             color: #D4D4D4;
             padding: 8px 16px;
             border: none;
-            font-family: 'Cascadia Code', 'Segoe UI', sans-serif;
-        }
+            font-weight: 400;
+            font-family: {font_family};
+        }}
         
-        QTabBar::tab:selected {
+        QTabBar::tab:selected {{
             background-color: #1E1E1E;
             border-bottom: 2px solid #0E639C;
-        }
+        }}
         
-        QTabBar::tab:hover {
+        QTabBar::tab:hover {{
             background-color: #3C3C3C;
-        }
+        }}
         
-        QScrollBar:vertical {
+        QScrollBar:vertical {{
             background-color: #1E1E1E;
             width: 14px;
-        }
+        }}
         
-        QScrollBar::handle:vertical {
+        QScrollBar::handle:vertical {{
             background-color: #3E3E42;
             border-radius: 7px;
-        }
+        }}
         
-        QScrollBar::handle:vertical:hover {
+        QScrollBar::handle:vertical:hover {{
             background-color: #4E4E52;
-        }
+        }}
         
-        QMessageBox {
+        QMessageBox {{
             background-color: #2D2D30;
             color: #D4D4D4;
-        }
+        }}
         
-        QMessageBox QLabel {
+        QMessageBox QLabel {{
             color: #D4D4D4;
             background: transparent;
-            font-family: 'Cascadia Code', 'Segoe UI', sans-serif;
-        }
+            font-weight: 400;
+            font-family: {font_family};
+        }}
         
-        QInputDialog {
+        QInputDialog {{
             background-color: #2D2D30;
             color: #D4D4D4;
-        }
+        }}
         
-        QInputDialog QLabel {
+        QInputDialog QLabel {{
             color: #D4D4D4;
             background: transparent;
-            font-family: 'Cascadia Code', 'Segoe UI', sans-serif;
-        }
+            font-weight: 400;
+            font-family: {font_family};
+        }}
         
-        QLabel#noteTitle {
+        QLabel#noteTitle {{
             color: #FFFFFF;
             font-size: 12px;
             font-weight: 600;
-            font-family: 'Cascadia Code', 'Segoe UI', sans-serif;
+            font-family: {font_family};
             background: transparent;
-        }
+        }}
         
-        QLabel#noteDate {
+        QLabel#noteDate {{
             color: #8C8C8C;
             font-size: 10px;
-            font-weight: normal;
-            font-family: 'Cascadia Code', 'Cascadia Mono', monospace;
+            font-weight: 400;
+            font-family: {font_family};
             background: transparent;
-        }
+        }}
     """)
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    apply_vs_theme(app)
 
-    font = QFont("Cascadia Code", 10)
-    if not font.exactMatch():
-        font = QFont("Cascadia Mono", 10)
+    custom_font_family = load_custom_fonts()
+    apply_theme(app, custom_font_family)
+
+    if custom_font_family:
+        font = QFont(custom_font_family, 10, QFont.Weight.Normal)
+    else:
+        font = QFont("Cascadia Code", 10)
         if not font.exactMatch():
-            font = QFont("Consolas", 10)
+            font = QFont("Cascadia Mono", 10)
+            if not font.exactMatch():
+                font = QFont("Consolas", 10)
+
     app.setFont(font)
 
     editor = HiddeNoteApp()
