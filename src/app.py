@@ -64,6 +64,14 @@ class HiddenoteApp(QMainWindow):
 
         dock_container = QMainWindow()
         dock_container.setObjectName("dockContainer")
+        dock_container.setDockOptions(
+            QMainWindow.DockOption.AllowNestedDocks
+            | QMainWindow.DockOption.AllowTabbedDocks
+            | QMainWindow.DockOption.AnimatedDocks
+        )
+        dock_container.setTabPosition(
+            Qt.DockWidgetArea.AllDockWidgetAreas, QTabWidget.TabPosition.North
+        )
         frame_layout.addWidget(dock_container)
 
         self.dock_main_window = dock_container
@@ -93,54 +101,85 @@ class HiddenoteApp(QMainWindow):
         self.notes_list.currentRowChanged.connect(self.load_note)
         sidebar_layout.addWidget(self.notes_list)
 
-        sidebar_dock = QDockWidget("Notes", self.dock_main_window)
-        sidebar_dock.setWidget(sidebar)
-        sidebar_dock.setFeatures(
+        self.sidebar_dock = QDockWidget("Notes", self.dock_main_window)
+        self.sidebar_dock.setWidget(sidebar)
+        self.sidebar_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable
             | QDockWidget.DockWidgetFeature.DockWidgetFloatable
         )
+        self.sidebar_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
         self.dock_main_window.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, sidebar_dock
+            Qt.DockWidgetArea.LeftDockWidgetArea, self.sidebar_dock
         )
 
     def setup_editor_dock(self):
         self.edit_tab = QTextEdit()
         self.edit_tab.textChanged.connect(self.on_text_changed)
 
-        editor_dock = QDockWidget("Editor", self.dock_main_window)
-        editor_dock.setWidget(self.edit_tab)
-        editor_dock.setFeatures(
+        self.editor_dock = QDockWidget("Editor", self.dock_main_window)
+        self.editor_dock.setWidget(self.edit_tab)
+        self.editor_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable
             | QDockWidget.DockWidgetFeature.DockWidgetFloatable
         )
-        self.dock_main_window.addDockWidget(
-            Qt.DockWidgetArea.RightDockWidgetArea, editor_dock
+        self.editor_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea
+            | Qt.DockWidgetArea.RightDockWidgetArea
+            | Qt.DockWidgetArea.TopDockWidgetArea
+            | Qt.DockWidgetArea.BottomDockWidgetArea
         )
-        self.editor_dock = editor_dock
+        self.dock_main_window.addDockWidget(
+            Qt.DockWidgetArea.RightDockWidgetArea, self.editor_dock
+        )
 
     def setup_preview_dock(self):
         self.preview_tab = QTextBrowser()
 
-        preview_dock = QDockWidget("Preview", self.dock_main_window)
-        preview_dock.setWidget(self.preview_tab)
-        preview_dock.setFeatures(
+        self.preview_dock = QDockWidget("Preview", self.dock_main_window)
+        self.preview_dock.setWidget(self.preview_tab)
+        self.preview_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable
             | QDockWidget.DockWidgetFeature.DockWidgetFloatable
         )
-        self.dock_main_window.addDockWidget(
-            Qt.DockWidgetArea.RightDockWidgetArea, preview_dock
+        self.preview_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea
+            | Qt.DockWidgetArea.RightDockWidgetArea
+            | Qt.DockWidgetArea.TopDockWidgetArea
+            | Qt.DockWidgetArea.BottomDockWidgetArea
         )
-        self.preview_dock = preview_dock
+        self.dock_main_window.addDockWidget(
+            Qt.DockWidgetArea.RightDockWidgetArea, self.preview_dock
+        )
 
-        self.dock_main_window.tabifyDockWidget(self.editor_dock, preview_dock)
+        self.dock_main_window.tabifyDockWidget(self.editor_dock, self.preview_dock)
         self.editor_dock.raise_()
 
-        self.dock_main_window.setTabPosition(
-            Qt.DockWidgetArea.AllDockWidgetAreas, QTabWidget.TabPosition.North
+    def get_dock_widgets(self):
+        return {
+            "sidebar": self.sidebar_dock,
+            "editor": self.editor_dock,
+            "preview": self.preview_dock,
+        }
+
+    def reset_layout(self):
+        self.dock_main_window.addDockWidget(
+            Qt.DockWidgetArea.LeftDockWidgetArea, self.sidebar_dock
+        )
+        self.dock_main_window.addDockWidget(
+            Qt.DockWidgetArea.RightDockWidgetArea, self.editor_dock
+        )
+        self.dock_main_window.addDockWidget(
+            Qt.DockWidgetArea.RightDockWidgetArea, self.preview_dock
         )
 
-    def get_dock_widgets(self):
-        return {"editor": self.editor_dock, "preview": self.preview_dock}
+        self.dock_main_window.tabifyDockWidget(self.editor_dock, self.preview_dock)
+        self.editor_dock.raise_()
+
+        self.sidebar_dock.show()
+        self.editor_dock.show()
+        self.preview_dock.show()
 
     def setup_context_menu(self):
         self.dock_main_window.menuBar().hide()
@@ -154,6 +193,13 @@ class HiddenoteApp(QMainWindow):
 
     def show_dock_context_menu(self, position):
         context_menu = QMenu(self)
+
+        sidebar_toggle = context_menu.addAction("Show/Hide Notes")
+        sidebar_toggle.setCheckable(True)
+        sidebar_toggle.setChecked(self.sidebar_dock.isVisible())
+        sidebar_toggle.triggered.connect(
+            lambda checked: self.sidebar_dock.setVisible(checked)
+        )
 
         editor_toggle = context_menu.addAction("Show/Hide Editor")
         editor_toggle.setCheckable(True)
@@ -176,6 +222,11 @@ class HiddenoteApp(QMainWindow):
 
         tabify_action = context_menu.addAction("Tabify Editor and Preview")
         tabify_action.triggered.connect(self.tabify_editor_preview)
+
+        context_menu.addSeparator()
+
+        reset_action = context_menu.addAction("Reset Layout")
+        reset_action.triggered.connect(self.reset_layout)
 
         context_menu.exec(self.dock_main_window.mapToGlobal(position))
 
