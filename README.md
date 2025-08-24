@@ -2,7 +2,6 @@
 
 A simple encrypted notepad application built with Python and PyQt6.
 
-
 ## Features
 
 - **Encryption**: All notes are encrypted using password-based authentication
@@ -15,6 +14,14 @@ A simple encrypted notepad application built with Python and PyQt6.
 - Python 3.7+
 - PyQt6
 - Additional dependencies listed in requirements.txt
+
+### Linux Additional Requirements
+
+For Ubuntu/Debian systems, install the following system dependencies:
+
+```bash
+sudo apt install -y libxcb-cursor0 libxcb-cursor-dev binutils python3.13-dev
+```
 
 ## Installation
 
