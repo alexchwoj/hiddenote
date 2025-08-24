@@ -21,18 +21,12 @@ class NoteItemWidget(QWidget):
         self.title_label.setObjectName("noteTitle")
         layout.addWidget(self.title_label)
 
-        created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00")).replace(
-            tzinfo=None
-        )
-        updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00")).replace(
+        date_to_show = updated_at if updated_at else created_at
+        date_dt = datetime.fromisoformat(date_to_show.replace("Z", "+00:00")).replace(
             tzinfo=None
         )
 
-        self.created_label = QLabel(f"created: {created_dt.strftime('%m/%d/%Y %H:%M')}")
-        self.created_label.setObjectName("noteDate")
-        layout.addWidget(self.created_label)
-
-        self.updated_label = QLabel(f"updated: {updated_dt.strftime('%m/%d/%Y %H:%M')}")
+        self.updated_label = QLabel(f"updated: {date_dt.strftime('%m/%d/%Y %H:%M')}")
         self.updated_label.setObjectName("noteDate")
         layout.addWidget(self.updated_label)
 
@@ -43,14 +37,12 @@ class NoteItemWidget(QWidget):
         self.title_label.setStyleSheet(
             "color: #23262F; font-weight: bold; font-size: 16px;"
         )
-        self.created_label.setStyleSheet("color: #6C6F7E; font-size: 13px;")
         self.updated_label.setStyleSheet("color: #6C6F7E; font-size: 13px;")
 
     def set_unselected_style(self):
         self.title_label.setStyleSheet(
             "color: #6C6F7E; font-weight: bold; font-size: 16px;"
         )
-        self.created_label.setStyleSheet("color: #6C6F7E; font-size: 13px;")
         self.updated_label.setStyleSheet("color: #6C6F7E; font-size: 13px;")
 
 
