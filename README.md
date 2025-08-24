@@ -2,9 +2,6 @@
 
 A simple encrypted notepad application built with Python and PyQt6.
 
-## Overview
-
-hiddenote is an open-source note-taking application that focuses on privacy and security. All notes are encrypted and stored locally in a SQLite database.
 
 ## Features
 
@@ -47,7 +44,6 @@ The project includes build scripts for creating standalone executables:
 - **Linux**: `build_linux.sh` or `python build.py --platform linux`
 - **macOS**: `build_macos.sh` or `python build.py --platform macos`
 - **All platforms**: `python build.py --platform all --tag v1.0.0`
-
 
 ## License
 
