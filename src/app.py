@@ -1,4 +1,5 @@
 import sys
+import os
 import markdown
 from PyQt6.QtWidgets import (
     QWidget,
@@ -15,7 +16,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QShortcut, QKeySequence
+from PyQt6.QtGui import QShortcut, QKeySequence, QIcon
 
 from .auth import AuthManager
 from .ui.dialogs import CustomTitleBar, CustomInputDialog, CustomMessageBox
@@ -42,6 +43,12 @@ class HiddenoteApp(QWidget):
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setGeometry(100, 100, 1200, 800)
+
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "icon.ico"
+        )
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)

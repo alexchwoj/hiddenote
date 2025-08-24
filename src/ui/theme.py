@@ -139,7 +139,7 @@ def apply_theme(app, custom_font_family=None):
             color: #23262F;
         }}
         QDialog QPushButton:pressed {{
-            background-color: #C9A100;
+            background-color: #DEB86A;
             color: #181A20;
         }}
 
@@ -186,7 +186,7 @@ def apply_theme(app, custom_font_family=None):
         }}
 
         QPushButton:pressed {{
-            background-color: #C9A100;
+            background-color: #DEB86A;
             color: #181A20;
         }}
 
