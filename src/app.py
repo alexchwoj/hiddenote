@@ -30,11 +30,13 @@ class HiddenoteApp(QWidget):
         self.db_manager = None
         self.current_note = None
 
-        if not self.auth_manager.authenticate_user():
+        self.init_ui()
+        self.show()
+
+        if not self.auth_manager.authenticate_user(self):
             sys.exit()
 
         self.db_manager = self.auth_manager.get_database_manager()
-        self.init_ui()
         self.setup_shortcuts()
         self.setup_auto_save()
         self.load_notes()

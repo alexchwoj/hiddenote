@@ -28,8 +28,7 @@ def main():
 
     app.setFont(font)
 
-    editor = HiddenoteApp()
-    editor.show()
+    HiddenoteApp()
     sys.exit(app.exec())
 
 

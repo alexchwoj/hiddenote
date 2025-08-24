@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QFrame,
+    QApplication,
 )
 from PyQt6.QtCore import Qt
 
@@ -65,7 +66,8 @@ class CustomTitleBar(QWidget):
 
 class CustomMessageBox(QDialog):
     def __init__(self, parent=None, title="", message="", buttons=None):
-        super().__init__(parent)
+        super().__init__(None)
+        self.parent_window = parent
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setModal(True)
@@ -133,6 +135,23 @@ class CustomMessageBox(QDialog):
         frame_layout.addLayout(content_layout)
         main_layout.addWidget(self.main_frame)
 
+        self.center_on_screen()
+
+    def center_on_screen(self):
+        if self.parent_window:
+            parent_center = self.parent_window.geometry().center()
+            screen = QApplication.screenAt(parent_center)
+            if screen is None:
+                screen = QApplication.primaryScreen()
+            screen_geometry = screen.availableGeometry()
+        else:
+            screen = QApplication.primaryScreen()
+            screen_geometry = screen.availableGeometry()
+
+        x = screen_geometry.x() + (screen_geometry.width() - self.width()) // 2
+        y = screen_geometry.y() + (screen_geometry.height() - self.height()) // 2
+        self.move(x, y)
+
     def set_result(self, result):
         self.result_value = result
         self.accept()
@@ -164,7 +183,8 @@ class CustomMessageBox(QDialog):
 
 class CustomInputDialog(QDialog):
     def __init__(self, parent=None, title="", label="", text=""):
-        super().__init__(parent)
+        super().__init__(None)
+        self.parent_window = parent
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setModal(True)
@@ -214,6 +234,22 @@ class CustomInputDialog(QDialog):
         main_layout.addWidget(self.main_frame)
 
         self.line_edit.setFocus()
+        self.center_on_screen()
+
+    def center_on_screen(self):
+        if self.parent_window:
+            parent_center = self.parent_window.geometry().center()
+            screen = QApplication.screenAt(parent_center)
+            if screen is None:
+                screen = QApplication.primaryScreen()
+            screen_geometry = screen.availableGeometry()
+        else:
+            screen = QApplication.primaryScreen()
+            screen_geometry = screen.availableGeometry()
+
+        x = screen_geometry.x() + (screen_geometry.width() - self.width()) // 2
+        y = screen_geometry.y() + (screen_geometry.height() - self.height()) // 2
+        self.move(x, y)
 
     def accept_text(self):
         self.text_value = self.line_edit.text()
@@ -229,8 +265,9 @@ class CustomInputDialog(QDialog):
 
 
 class PasswordDialog(QDialog):
-    def __init__(self, is_new_user=False):
-        super().__init__()
+    def __init__(self, is_new_user=False, parent=None):
+        super().__init__(None)
+        self.parent_window = parent
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
@@ -280,6 +317,22 @@ class PasswordDialog(QDialog):
 
         self.setLayout(main_layout)
         self.password_input.setFocus()
+        self.center_on_screen()
+
+    def center_on_screen(self):
+        if self.parent_window:
+            parent_center = self.parent_window.geometry().center()
+            screen = QApplication.screenAt(parent_center)
+            if screen is None:
+                screen = QApplication.primaryScreen()
+            screen_geometry = screen.availableGeometry()
+        else:
+            screen = QApplication.primaryScreen()
+            screen_geometry = screen.availableGeometry()
+
+        x = screen_geometry.x() + (screen_geometry.width() - self.width()) // 2
+        y = screen_geometry.y() + (screen_geometry.height() - self.height()) // 2
+        self.move(x, y)
 
     def accept_password(self):
         self.password = self.password_input.text()
