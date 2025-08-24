@@ -44,6 +44,8 @@ class DatabaseManager:
         cursor.execute("SELECT salt FROM user_auth WHERE id = 1")
         result = cursor.fetchone()
 
+        is_first_setup = result is None
+
         if result:
             salt = result[0]
         else:
@@ -65,6 +67,9 @@ class DatabaseManager:
         )
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         self.cipher_suite = Fernet(key)
+
+        if is_first_setup:
+            self.create_welcome_note()
 
     def verify_password(self, password):
         conn = sqlite3.connect(self.db_path)
@@ -142,3 +147,54 @@ class DatabaseManager:
         cursor.execute("DELETE FROM notes WHERE title = ?", (title,))
         conn.commit()
         conn.close()
+
+    def create_welcome_note(self):
+        welcome_content = """# Welcome to hiddenote!
+
+Thanks for trying out hiddenote, a simple encrypted note-taking app built with Python and PyQt6.
+
+## Getting Started
+
+Here are some essential shortcuts to help you navigate:
+
+### Basic Controls
+- **Ctrl+N** or **Insert** - Create a new note
+- **Ctrl+S** - Save current note
+- **Ctrl+F** - Focus search box
+- **Delete** - Delete selected note (when note is selected in list)
+
+### Interface Tips
+- **Auto-save**: Your notes automatically save after 1.5 seconds of inactivity
+- **Markdown**: Write in markdown and see the preview in the Preview tab
+- **Search**: Use the search box to quickly find notes by title
+- **Docks**: Right-click in the main area to show/hide panels or reset layout
+
+## Features
+
+- **Encryption**: All your notes are encrypted with your password
+- **Markdown Support**: Write formatted text with markdown syntax
+- **Cross-platform**: Works on Windows, Linux, and macOS
+- **Customizable Layout**: Drag and arrange panels to your liking
+
+## Want to Contribute?
+
+hiddenote is open source! If you'd like to help improve it, check out the repository:
+https://github.com/alexchwoj/hiddenote
+
+You can:
+- Report bugs or suggest features
+- Submit pull requests
+- Help with documentation
+- Share your experience with others
+
+## Your Privacy
+
+Your notes are encrypted locally using your password. No data is sent to any servers - everything stays on your device.
+
+---
+
+*You can delete this note anytime by selecting it and pressing Delete.*
+
+Happy note-taking! 📝"""
+
+        self.save_note("Welcome to hiddenote", welcome_content)
