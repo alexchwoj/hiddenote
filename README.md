@@ -1,3 +1,6 @@
+<img width="1920" height="1080" alt="hiddennote" src="https://github.com/user-attachments/assets/55c51112-65f6-425e-b6ef-4ec2bc95c5b2" />
+
+
 # hiddenote
 
 An encrypted note-taking app built with Python and PyQt6.
