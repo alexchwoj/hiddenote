@@ -107,6 +107,12 @@ python build.py --platform macos
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
+
+## Screenshots
+<img width="1204" height="806" alt="image" src="https://github.com/user-attachments/assets/271a9340-4d2f-45fb-856e-0252506f74b7" />
+<img width="1205" height="806" alt="image" src="https://github.com/user-attachments/assets/5d7129b7-0d5e-47d2-a24d-a6a0fce07876" />
+
+
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
