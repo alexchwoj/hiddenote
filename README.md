@@ -1,57 +1,112 @@
 # hiddenote
 
-A simple encrypted notepad application built with Python and PyQt6.
+An encrypted note-taking app built with Python and PyQt6.
+All notes are encrypted locally — nothing is sent to any server.
 
 ## Features
 
-- **Encryption**: All notes are encrypted using password-based authentication
-- **Markdown Support**: Write and preview markdown content
-- **Cross-platform**: Available for Windows, Linux, and macOS
-- **Auto-save**: Automatic saving of your work
+### Security
+
+- **Argon2id password hashing** with automatic migration from v1 SHA-256 databases
+- **AES-256 encryption** (Fernet) with a PBKDF2-derived key
+- **Change master password** — re-encrypts all notes transparently
+- **Auto-lock** after configurable idle timeout
+- **Failed-attempt limit** — 5 wrong passwords closes the app
+- **HMAC integrity check** — detects external database tampering on startup
+- **Encrypted backup** — copy the database file at any time
+
+### Editor
+
+- **Markdown** editor with live preview (tables, fenced code, TOC, syntax highlighting)
+- **Find & Replace** (`Ctrl+H`) with prev / next / replace all and case-sensitive mode
+- **Line numbers** (toggle via right-click)
+- **Live word & character counter** and line / column indicator in the status bar
+- **Insert date & time** at cursor (`Ctrl+Shift+D`)
+- **Read-only mode** per note
+- **Print** the rendered preview (`Ctrl+P`)
+- **Auto-save** with 1.5 s debounce
+
+### Organisation
+
+- **Tags** — multiple tags per note, filter the list by tag
+- **Pin** important notes to the top (★)
+- **Archive** old notes without deleting them
+- **Trash** — soft delete with 30-day auto-cleanup; permanent deletion requires a second confirmation
+- **View filters** — All / Pinned / Archived / Trash
+- **Sort** by last updated, creation date, or title
+- **Rename** notes from the context menu
+
+### Export & Import
+
+- Export notes as **Markdown**, **HTML**, or **plain text**
+- Import `.txt` / `.md` files from disk
+- Manual database backup from the Settings dialog
+
+### History
+
+- **Version history** — up to 20 snapshots per note, saved on `Ctrl+S` or when leaving the note
+- **Restore** any previous snapshot with one click
+
+## Shortcuts
+
+| Shortcut            | Action                                              |
+| ------------------- | --------------------------------------------------- |
+| `Ctrl+N` / `Insert` | New note                                            |
+| `Ctrl+S`            | Save & create version snapshot                      |
+| `Ctrl+F`            | Focus note search                                   |
+| `Ctrl+H`            | Find & Replace in editor                            |
+| `Ctrl+Shift+D`      | Insert current date & time                          |
+| `Ctrl+L`            | Lock app                                            |
+| `Ctrl+P`            | Print                                               |
+| `Delete`            | Move selected note to trash                         |
+| Right-click note    | Rename, pin, archive, tags, export, version history |
+| Right-click editor  | Toggle line numbers, layout options                 |
 
 ## Requirements
 
-- Python 3.7+
-- PyQt6
-- Additional dependencies listed in requirements.txt
+- Python 3.9+
+- Dependencies listed in `requirements.txt`
 
-### Linux Additional Requirements
+```text
+argon2-cffi
+cryptography
+Markdown
+Pygments
+PyQt6
+```
 
-For Ubuntu/Debian systems, install the following system dependencies:
+### Linux additional dependencies
 
 ```bash
-sudo apt install -y libxcb-cursor0 libxcb-cursor-dev binutils python3.13-dev
+sudo apt install -y libxcb-cursor0 libxcb-cursor-dev binutils python3-dev
 ```
 
 ## Installation
 
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/alexchwoj/hiddenote.git
-   cd hiddenote
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run the application:
-   ```bash
-   python main.py
-   ```
+```bash
+git clone https://github.com/alexchwoj/hiddenote.git
+cd hiddenote
+pip install -r requirements.txt
+python main.py
+```
 
 ## Building
 
-The project includes build scripts for creating standalone executables:
+```bash
+# Windows
+python build.py --platform windows
 
-- **Windows**: `build_windows.bat` or `python build.py --platform windows`
-- **Linux**: `build_linux.sh` or `python build.py --platform linux`
-- **macOS**: `build_macos.sh` or `python build.py --platform macos`
-- **All platforms**: `python build.py --platform all --tag v1.0.0`
+# Linux
+python build.py --platform linux
+
+# macOS
+python build.py --platform macos
+```
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE) for details.

@@ -570,4 +570,123 @@ def apply_theme(app, custom_font_family=None):
             font-family: {font_family};
             background: transparent;
         }}
+
+        QComboBox {{
+            background-color: #23262F;
+            color: #E6E6E6;
+            border: 1.5px solid #35384A;
+            border-radius: 8px;
+            padding: 4px 12px;
+            font-size: 14px;
+            font-family: {font_family};
+            min-height: 28px;
+            max-height: 28px;
+        }}
+
+        QComboBox:hover {{
+            border: 1.5px solid #6C6F7E;
+        }}
+
+        QComboBox:focus {{
+            border: 1.5px solid #FFD580;
+        }}
+
+        QComboBox::drop-down {{
+            subcontrol-origin: padding;
+            subcontrol-position: center right;
+            width: 28px;
+            border: none;
+            background: transparent;
+        }}
+
+        QComboBox::down-arrow {{
+            image: none;
+            width: 0px;
+            height: 0px;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #6C6F7E;
+        }}
+
+        QComboBox QAbstractItemView {{
+            background-color: #23262F;
+            color: #E6E6E6;
+            border: 1.5px solid #35384A;
+            border-radius: 8px;
+            selection-background-color: #FFD580;
+            selection-color: #23262F;
+            padding: 4px;
+            outline: none;
+            font-family: {font_family};
+            font-size: 15px;
+        }}
+
+        QComboBox QAbstractItemView::item {{
+            min-height: 26px;
+            padding: 3px 10px;
+            border-radius: 6px;
+        }}
+
+        QComboBox QAbstractItemView::item:selected {{
+            background-color: #FFD580;
+            color: #23262F;
+        }}
+
+        QComboBox QAbstractItemView::item:hover {{
+            background-color: #35384A;
+            color: #E6E6E6;
+        }}
+
+        QMenu {{
+            background-color: #23262F;
+            border: 1.5px solid #35384A;
+            border-radius: 12px;
+            padding: 6px 4px;
+            color: #E6E6E6;
+            font-family: {font_family};
+            font-size: 14px;
+        }}
+
+        QMenu::item {{
+            padding: 7px 28px 7px 14px;
+            border-radius: 7px;
+            margin: 1px 4px;
+            background: transparent;
+            color: #E6E6E6;
+        }}
+
+        QMenu::item:selected {{
+            background-color: #35384A;
+            color: #FFD580;
+        }}
+
+        QMenu::item:disabled {{
+            color: #6C6F7E;
+        }}
+
+        QMenu::separator {{
+            height: 1px;
+            background: #35384A;
+            margin: 5px 12px;
+        }}
+
+        QMenu::indicator {{
+            left: 10px;
+            width: 12px;
+            height: 12px;
+        }}
+
+        QMenu::right-arrow {{
+            margin-right: 10px;
+            width: 6px;
+            height: 6px;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-left: 6px solid #6C6F7E;
+            image: none;
+        }}
+
+        QMenu::right-arrow:selected {{
+            border-left-color: #FFD580;
+        }}
     """)

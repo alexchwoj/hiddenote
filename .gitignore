@@ -210,3 +210,5 @@ __marimo__/
 demos_python/
 
 *.db
+
+.claude

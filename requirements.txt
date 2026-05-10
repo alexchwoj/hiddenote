@@ -1,5 +1,7 @@
+argon2-cffi
 cryptography==45.0.6
 Markdown==3.8.2
+Pygments
 PyQt6==6.9.1
 pyqt6_sip==13.10.2
 pyinstaller

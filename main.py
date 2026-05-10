@@ -28,7 +28,8 @@ def main():
 
     app.setFont(font)
 
-    HiddenoteApp()
+    test_mode = "--test-mode" in sys.argv
+    HiddenoteApp(test_mode=test_mode)
     sys.exit(app.exec())
 
 
