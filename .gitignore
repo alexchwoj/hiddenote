@@ -212,3 +212,5 @@ demos_python/
 *.db
 
 .claude
+.DS_Store
+/.junie

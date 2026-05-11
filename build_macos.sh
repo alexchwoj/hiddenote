@@ -5,12 +5,19 @@ echo "Building macOS executable..."
 rm -rf build/
 rm -rf dist/
 
-pyinstaller --onefile --windowed --add-data "assets:assets" --add-data "src:src" main.py --name hiddenote
+pyinstaller hiddenote.spec
 
 if [ $? -eq 0 ]; then
     echo "Build completed successfully!"
-    echo "Executable available at: dist/hiddenote"
-    chmod +x dist/hiddenote
+    echo "Updating Info.plist..."
+    echo "Application available at: dist/hiddenote.app"
+    # Remove the non-bundle executable
+    rm -rf dist/hiddenote
+
+    echo "Signing and cleaning app bundle..."
+    xattr -cr dist/hiddenote.app
+    codesign --force --sign - dist/hiddenote.app/Contents/Frameworks/Python.framework
+    codesign --force --deep --sign - dist/hiddenote.app
 else
     echo "Build failed!"
     exit 1
