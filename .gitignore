@@ -215,3 +215,4 @@ demos_python/
 .DS_Store
 /.junie
 /.idea
+*.dmg
