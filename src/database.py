@@ -1,24 +1,54 @@
-import sqlite3
+import base64
 import hashlib
 import hmac
 import os
 import shutil
+import sqlite3
+import sys
 from datetime import datetime
+
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import base64
 
 try:
     from argon2 import PasswordHasher
-    from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
+    from argon2.exceptions import (
+        InvalidHashError,
+        VerificationError,
+        VerifyMismatchError,
+    )
+
     ARGON2_AVAILABLE = True
 except ImportError:
     ARGON2_AVAILABLE = False
 
 
 class DatabaseManager:
-    def __init__(self, db_path="hiddenote.db"):
+    def __init__(self, db_path=None):
+        if db_path is None:
+            if getattr(sys, "frozen", False):
+                # Running as frozen app (.app, .exe, etc.)
+                if sys.platform == "win32":
+                    base = os.getenv("APPDATA")
+                    app_dir = os.path.join(base, "hiddenote")
+                elif sys.platform == "darwin":
+                    app_dir = os.path.join(
+                        os.path.expanduser("~"),
+                        "Library",
+                        "Application Support",
+                        "hiddenote",
+                    )
+                else:  # Linux and others
+                    app_dir = os.path.join(
+                        os.path.expanduser("~"), ".local", "share", "hiddenote"
+                    )
+                os.makedirs(app_dir, exist_ok=True)
+                db_path = os.path.join(app_dir, "hiddenote.db")
+            else:
+                # Running from source / direct script
+                db_path = "hiddenote.db"
+
         self.db_path = db_path
         self.cipher_suite = None
         self._integrity_key = None
@@ -88,12 +118,20 @@ class DatabaseManager:
         """)
 
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_title ON notes(title)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at)"
+        )
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_pinned ON notes(pinned)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived)"
+        )
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_trash ON notes(in_trash)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_versions_note ON note_versions(note_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_note_tags_note ON note_tags(note_id)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_versions_note ON note_versions(note_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_note_tags_note ON note_tags(note_id)"
+        )
 
         conn.commit()
         conn.close()
@@ -395,7 +433,9 @@ class DatabaseManager:
         tag_join = ""
         tag_params = []
         if tag_filter:
-            tag_join = "JOIN note_tags nt ON n.id = nt.note_id JOIN tags t ON nt.tag_id = t.id"
+            tag_join = (
+                "JOIN note_tags nt ON n.id = nt.note_id JOIN tags t ON nt.tag_id = t.id"
+            )
             where += " AND t.name = ?"
             tag_params.append(tag_filter)
 
@@ -419,7 +459,9 @@ class DatabaseManager:
     def rename_note(self, old_title, new_title):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("UPDATE notes SET title = ? WHERE title = ?", (new_title, old_title))
+        cursor.execute(
+            "UPDATE notes SET title = ? WHERE title = ?", (new_title, old_title)
+        )
         conn.commit()
         conn.close()
 
@@ -473,7 +515,9 @@ class DatabaseManager:
         new_val = 0
         if result:
             new_val = 0 if result[0] else 1
-            cursor.execute("UPDATE notes SET pinned = ? WHERE title = ?", (new_val, title))
+            cursor.execute(
+                "UPDATE notes SET pinned = ? WHERE title = ?", (new_val, title)
+            )
         conn.commit()
         conn.close()
         return new_val
@@ -487,7 +531,8 @@ class DatabaseManager:
         if result:
             new_val = 0 if result[0] else 1
             cursor.execute(
-                "UPDATE notes SET archived = ?, pinned = 0 WHERE title = ?", (new_val, title)
+                "UPDATE notes SET archived = ?, pinned = 0 WHERE title = ?",
+                (new_val, title),
             )
         conn.commit()
         conn.close()
@@ -537,7 +582,8 @@ class DatabaseManager:
                 tag_id = cursor.fetchone()[0]
             try:
                 cursor.execute(
-                    "INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)", (note_id, tag_id)
+                    "INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)",
+                    (note_id, tag_id),
                 )
             except sqlite3.IntegrityError:
                 pass
@@ -577,6 +623,7 @@ class DatabaseManager:
 
     def export_note_as_html(self, title, path):
         import markdown as md
+
         content = self.load_note(title)
         html_body = md.markdown(
             content,
@@ -1040,15 +1087,27 @@ The best tool for the job is often the one with fewer escape hatches.
             (
                 "Project Roadmap Q2 2026",
                 [
-                    ("5 days ago", "# Project Roadmap — Q2 2026\n\n## Goals\n\nInitial draft, milestones TBD.\n"),
-                    ("3 days ago", "# Project Roadmap — Q2 2026\n\n## Goals\n\n| Area | Target |\n|------|--------|\n| Backend API | v3 launch |\n| Mobile app | Beta release |\n\n## May\n- [ ] Finalize API contracts\n- [ ] CI/CD pipeline\n"),
+                    (
+                        "5 days ago",
+                        "# Project Roadmap — Q2 2026\n\n## Goals\n\nInitial draft, milestones TBD.\n",
+                    ),
+                    (
+                        "3 days ago",
+                        "# Project Roadmap — Q2 2026\n\n## Goals\n\n| Area | Target |\n|------|--------|\n| Backend API | v3 launch |\n| Mobile app | Beta release |\n\n## May\n- [ ] Finalize API contracts\n- [ ] CI/CD pipeline\n",
+                    ),
                 ],
             ),
             (
                 "Python Cheat Sheet",
                 [
-                    ("4 days ago", "# Python Cheat Sheet\n\n## List Comprehensions\n\n```python\nsquares = [x**2 for x in range(10)]\n```\n"),
-                    ("2 days ago", "# Python Cheat Sheet\n\n## List Comprehensions\n\n```python\nsquares = [x**2 for x in range(10)]\nevens   = [x for x in range(20) if x % 2 == 0]\n```\n\n## Dictionary Tricks\n\n```python\nmerged = dict_a | dict_b\n```\n"),
+                    (
+                        "4 days ago",
+                        "# Python Cheat Sheet\n\n## List Comprehensions\n\n```python\nsquares = [x**2 for x in range(10)]\n```\n",
+                    ),
+                    (
+                        "2 days ago",
+                        "# Python Cheat Sheet\n\n## List Comprehensions\n\n```python\nsquares = [x**2 for x in range(10)]\nevens   = [x for x in range(20) if x % 2 == 0]\n```\n\n## Dictionary Tricks\n\n```python\nmerged = dict_a | dict_b\n```\n",
+                    ),
                 ],
             ),
         ]
@@ -1059,7 +1118,7 @@ The best tool for the job is often the one with fewer escape hatches.
             if not row:
                 continue
             note_id = row[0]
-            for (ago_str, snap_content) in snapshots:
+            for ago_str, snap_content in snapshots:
                 enc = self.encrypt_content(snap_content)
                 cursor.execute(
                     f"INSERT INTO note_versions (note_id, content, saved_at) VALUES (?, ?, datetime('now', '-{ago_str}'))",
