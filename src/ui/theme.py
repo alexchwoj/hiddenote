@@ -33,9 +33,8 @@ def load_custom_fonts():
             for file in files:
                 if preferred in file:
                     return family
-        return family
 
-    return None
+    return next(iter(loaded_families), None)
 
 
 def apply_theme(app, custom_font_family=None):
