@@ -479,6 +479,10 @@ class HiddenoteApp(QMainWindow):
         self.auto_save_timer.timeout.connect(self.auto_save)
         self.auto_save_timer.setSingleShot(True)
 
+        self._preview_timer = QTimer()
+        self._preview_timer.timeout.connect(self.update_preview)
+        self._preview_timer.setSingleShot(True)
+
     def update_window_title(self, note_title=None):
         title = f"hiddenote - {note_title}" if note_title else "hiddenote"
         self.title_bar.update_title(title)
@@ -735,7 +739,8 @@ class HiddenoteApp(QMainWindow):
     def on_text_changed(self):
         self.auto_save_timer.stop()
         self.auto_save_timer.start(1500)
-        self.update_preview()
+        self._preview_timer.stop()
+        self._preview_timer.start(300)
         words, chars = self.edit_tab.word_count()
         cursor = self.edit_tab.textCursor()
         self._update_status_bar(
@@ -884,6 +889,10 @@ class HiddenoteApp(QMainWindow):
         QTimer.singleShot(0, self._update_editor_corners)
 
     def closeEvent(self, event):
+        self.auto_save_timer.stop()
+        self._preview_timer.stop()
+        self._auto_lock_timer.stop()
+        QApplication.instance().removeEventFilter(self._activity_filter)
         if self.db_manager is not None:
             self.save_current_note(save_version=True)
             self.db_manager.update_integrity_hash()
