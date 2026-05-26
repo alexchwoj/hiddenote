@@ -479,6 +479,10 @@ class HiddenoteApp(QMainWindow):
         self.auto_save_timer.timeout.connect(self.auto_save)
         self.auto_save_timer.setSingleShot(True)
 
+        self._preview_timer = QTimer()
+        self._preview_timer.timeout.connect(self.update_preview)
+        self._preview_timer.setSingleShot(True)
+
     def update_window_title(self, note_title=None):
         title = f"hiddenote - {note_title}" if note_title else "hiddenote"
         self.title_bar.update_title(title)
@@ -534,9 +538,9 @@ class HiddenoteApp(QMainWindow):
             self.db_manager.trash_note(title)
             if title == self.current_note:
                 self.current_note = None
-                self.edit_tab.textChanged.disconnect()
+                self.edit_tab.blockSignals(True)
                 self.edit_tab.clear()
-                self.edit_tab.textChanged.connect(self.on_text_changed)
+                self.edit_tab.blockSignals(False)
                 self.preview_tab.clear()
                 self.update_window_title()
             self.load_notes()
@@ -552,9 +556,9 @@ class HiddenoteApp(QMainWindow):
             self.db_manager.delete_note_permanently(title)
             if title == self.current_note:
                 self.current_note = None
-                self.edit_tab.textChanged.disconnect()
+                self.edit_tab.blockSignals(True)
                 self.edit_tab.clear()
-                self.edit_tab.textChanged.connect(self.on_text_changed)
+                self.edit_tab.blockSignals(False)
                 self.preview_tab.clear()
                 self.update_window_title()
             self.load_notes()
@@ -582,9 +586,9 @@ class HiddenoteApp(QMainWindow):
         self.db_manager.toggle_archive(title)
         if self.current_note == title:
             self.current_note = None
-            self.edit_tab.textChanged.disconnect()
+            self.edit_tab.blockSignals(True)
             self.edit_tab.clear()
-            self.edit_tab.textChanged.connect(self.on_text_changed)
+            self.edit_tab.blockSignals(False)
             self.preview_tab.clear()
             self.update_window_title()
         self.load_notes()
@@ -633,9 +637,9 @@ class HiddenoteApp(QMainWindow):
                 [QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No],
             )
             if reply == QMessageBox.StandardButton.Yes and title == self.current_note:
-                self.edit_tab.textChanged.disconnect()
+                self.edit_tab.blockSignals(True)
                 self.edit_tab.setPlainText(dialog.restored_content)
-                self.edit_tab.textChanged.connect(self.on_text_changed)
+                self.edit_tab.blockSignals(False)
                 self.update_preview()
                 self.save_current_note(save_version=True)
 
@@ -709,11 +713,11 @@ class HiddenoteApp(QMainWindow):
 
             read_only = self.db_manager.get_setting(f"readonly_{title}") == "1"
 
-            self.edit_tab.textChanged.disconnect()
+            self.edit_tab.blockSignals(True)
             self.edit_tab.setReadOnly(False)
             self.edit_tab.setPlainText(content)
             self.edit_tab.setReadOnly(read_only)
-            self.edit_tab.textChanged.connect(self.on_text_changed)
+            self.edit_tab.blockSignals(False)
 
             self.update_preview()
             self.update_window_title(title)
@@ -735,7 +739,8 @@ class HiddenoteApp(QMainWindow):
     def on_text_changed(self):
         self.auto_save_timer.stop()
         self.auto_save_timer.start(1500)
-        self.update_preview()
+        self._preview_timer.stop()
+        self._preview_timer.start(300)
         words, chars = self.edit_tab.word_count()
         cursor = self.edit_tab.textCursor()
         self._update_status_bar(
@@ -884,8 +889,13 @@ class HiddenoteApp(QMainWindow):
         QTimer.singleShot(0, self._update_editor_corners)
 
     def closeEvent(self, event):
-        self.save_current_note(save_version=True)
-        self.db_manager.update_integrity_hash()
+        self.auto_save_timer.stop()
+        self._preview_timer.stop()
+        self._auto_lock_timer.stop()
+        QApplication.instance().removeEventFilter(self._activity_filter)
+        if self.db_manager is not None:
+            self.save_current_note(save_version=True)
+            self.db_manager.update_integrity_hash()
         event.accept()
 
     def focus_search(self):

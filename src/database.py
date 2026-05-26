@@ -252,14 +252,16 @@ class DatabaseManager:
             try:
                 decrypted_notes.append((note_id, self.decrypt_content(enc)))
             except Exception:
-                decrypted_notes.append((note_id, ""))
+                conn.close()
+                return False
 
         decrypted_versions = []
         for v_id, enc in versions:
             try:
                 decrypted_versions.append((v_id, self.decrypt_content(enc)))
             except Exception:
-                decrypted_versions.append((v_id, ""))
+                conn.close()
+                return False
 
         new_salt = os.urandom(16)
         new_hash, algo = self._hash_password(new_password)
@@ -311,9 +313,13 @@ class DatabaseManager:
         self._integrity_key = None
 
     def encrypt_content(self, content):
+        if self.cipher_suite is None:
+            raise RuntimeError("Database is locked")
         return self.cipher_suite.encrypt(content.encode())
 
     def decrypt_content(self, encrypted_content):
+        if self.cipher_suite is None:
+            raise RuntimeError("Database is locked")
         return self.cipher_suite.decrypt(encrypted_content).decode()
 
     def compute_integrity_hash(self):
