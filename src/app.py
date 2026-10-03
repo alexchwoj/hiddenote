@@ -1,5 +1,6 @@
 import sys
 import os
+import sqlite3
 from datetime import datetime
 import markdown
 from PyQt6.QtWidgets import (
@@ -21,7 +22,7 @@ from PyQt6.QtWidgets import (
     QApplication,
     QSizePolicy,
 )
-from PyQt6.QtCore import QTimer, Qt, QObject, QEvent
+from PyQt6.QtCore import QTimer, Qt, QObject, QEvent, QSignalBlocker
 from PyQt6.QtGui import QShortcut, QKeySequence, QIcon, QAction
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 
@@ -136,11 +137,12 @@ class HiddenoteApp(QMainWindow):
             self._auto_lock_timer.start()
 
     def _lock_app(self):
+        if self.db_manager is None:
+            return
+        self.save_current_note(save_version=True)
+        self._auto_lock_timer.stop()
+        self._clear_editor()
         self.db_manager.lock()
-        self.edit_tab.clear()
-        self.preview_tab.clear()
-        self.current_note = None
-        self.update_window_title()
 
         if not self.auth_manager.re_authenticate(self):
             sys.exit()
@@ -314,6 +316,7 @@ class HiddenoteApp(QMainWindow):
         editor_layout.setSpacing(0)
 
         self.edit_tab = NoteEditor()
+        self.edit_tab.setReadOnly(True)
         self.edit_tab.textChanged.connect(self.on_text_changed)
         self.edit_tab.cursor_position_changed.connect(self._update_status_bar)
         editor_layout.addWidget(self.edit_tab)
@@ -493,14 +496,19 @@ class HiddenoteApp(QMainWindow):
         )
         if ok and title.strip():
             title = title.strip()
-            existing_titles = [n[0] for n in self.notes_list.all_notes]
-            if title in existing_titles:
+            if self.db_manager.note_exists(title):
                 CustomMessageBox.warning(
                     self, "hmm", "you already have a note with that name"
                 )
                 return
             self.save_current_note(save_version=True)
-            self.db_manager.save_note(title, "")
+            try:
+                self.db_manager.create_note(title)
+            except sqlite3.IntegrityError:
+                CustomMessageBox.warning(
+                    self, "hmm", "you already have a note with that name"
+                )
+                return
             self.load_notes()
             self._select_note_by_title(title)
 
@@ -510,13 +518,18 @@ class HiddenoteApp(QMainWindow):
         )
         if ok and new_title.strip() and new_title.strip() != old_title:
             new_title = new_title.strip()
-            existing = [n[0] for n in self.notes_list.all_notes]
-            if new_title in existing:
+            if self.db_manager.note_exists(new_title):
                 CustomMessageBox.warning(
                     self, "hmm", "a note with that name already exists"
                 )
                 return
-            self.db_manager.rename_note(old_title, new_title)
+            try:
+                self.db_manager.rename_note(old_title, new_title)
+            except sqlite3.IntegrityError:
+                CustomMessageBox.warning(
+                    self, "hmm", "a note with that name already exists"
+                )
+                return
             if self.current_note == old_title:
                 self.current_note = new_title
                 self.update_window_title(new_title)
@@ -535,14 +548,10 @@ class HiddenoteApp(QMainWindow):
             [QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No],
         )
         if reply == QMessageBox.StandardButton.Yes:
+            self.save_current_note(save_version=True)
             self.db_manager.trash_note(title)
             if title == self.current_note:
-                self.current_note = None
-                self.edit_tab.blockSignals(True)
-                self.edit_tab.clear()
-                self.edit_tab.blockSignals(False)
-                self.preview_tab.clear()
-                self.update_window_title()
+                self._clear_editor()
             self.load_notes()
 
     def permanently_delete_note(self, title):
@@ -555,12 +564,7 @@ class HiddenoteApp(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             self.db_manager.delete_note_permanently(title)
             if title == self.current_note:
-                self.current_note = None
-                self.edit_tab.blockSignals(True)
-                self.edit_tab.clear()
-                self.edit_tab.blockSignals(False)
-                self.preview_tab.clear()
-                self.update_window_title()
+                self._clear_editor()
             self.load_notes()
 
     def restore_note_from_trash(self, title):
@@ -575,6 +579,8 @@ class HiddenoteApp(QMainWindow):
             [QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No],
         )
         if reply == QMessageBox.StandardButton.Yes:
+            self.save_current_note(save_version=True)
+            self._clear_editor()
             self.db_manager.empty_trash()
             self.load_notes()
 
@@ -583,14 +589,10 @@ class HiddenoteApp(QMainWindow):
         self.load_notes(keep_selection=True)
 
     def toggle_archive_note(self, title):
+        self.save_current_note(save_version=True)
         self.db_manager.toggle_archive(title)
         if self.current_note == title:
-            self.current_note = None
-            self.edit_tab.blockSignals(True)
-            self.edit_tab.clear()
-            self.edit_tab.blockSignals(False)
-            self.preview_tab.clear()
-            self.update_window_title()
+            self._clear_editor()
         self.load_notes()
 
     def manage_note_tags(self, title):
@@ -644,7 +646,11 @@ class HiddenoteApp(QMainWindow):
                 self.save_current_note(save_version=True)
 
     def load_notes(self, keep_selection=False):
+        if self.db_manager is None:
+            return
+        self.save_current_note(save_version=True)
         selected_title = self.current_note if keep_selection else None
+        self._refresh_tag_filter()
         view = self.notes_list.current_view
         notes = self.db_manager.get_all_notes(
             sort_by=self._sort_key(),
@@ -652,25 +658,32 @@ class HiddenoteApp(QMainWindow):
             tag_filter=self._tag_filter(),
         )
         self.notes_list.set_all_notes(notes)
-        self.notes_list.clear()
+        search = self.search_input.text().strip().lower()
+        with QSignalBlocker(self.notes_list):
+            self.notes_list.clear()
+            for note in notes:
+                title, created_at, updated_at = note[0], note[1], note[2]
+                if search and search not in title.lower():
+                    continue
+                pinned = bool(note[3]) if len(note) > 3 else False
+                archived = bool(note[4]) if len(note) > 4 else False
+                tags = note[5] if len(note) > 5 else None
+                item = QListWidgetItem()
+                widget = NoteItemWidget(title, created_at, updated_at, pinned, archived, tags)
+                item.setSizeHint(widget.sizeHint())
+                self.notes_list.addItem(item)
+                self.notes_list.setItemWidget(item, widget)
 
-        for note in notes:
-            title, created_at, updated_at = note[0], note[1], note[2]
-            pinned = bool(note[3]) if len(note) > 3 else False
-            archived = bool(note[4]) if len(note) > 4 else False
-            tags = note[5] if len(note) > 5 else None
-            item = QListWidgetItem()
-            widget = NoteItemWidget(title, created_at, updated_at, pinned, archived, tags)
-            item.setSizeHint(widget.sizeHint())
-            self.notes_list.addItem(item)
-            self.notes_list.setItemWidget(item, widget)
+            if selected_title:
+                self._select_note_by_title(selected_title)
+            if self.notes_list.currentRow() < 0 and self.notes_list.count():
+                self.notes_list.setCurrentRow(0)
 
-        if selected_title:
-            self._select_note_by_title(selected_title)
-        elif notes:
-            self.notes_list.setCurrentRow(0)
-
-        self._refresh_tag_filter()
+        # The old buffer was saved before rebuilding. Load exactly once after
+        # row-change signals are unblocked, including when there are no matches.
+        self.current_note = None
+        self.notes_list.update_item_styles(self.notes_list.currentRow())
+        self.load_note(self.notes_list.currentRow())
 
     def _refresh_tag_filter(self):
         if self.db_manager is None:
@@ -697,9 +710,8 @@ class HiddenoteApp(QMainWindow):
                     return
 
     def load_note(self, index):
+        self.save_current_note(save_version=True)
         if index >= 0 and index < self.notes_list.count():
-            self.save_current_note(save_version=True)
-
             item = self.notes_list.item(index)
             widget = self.notes_list.itemWidget(item)
             if widget is None:
@@ -724,14 +736,25 @@ class HiddenoteApp(QMainWindow):
             self._update_status_bar(1, 1)
             self._update_status_bar_readonly(read_only)
         else:
-            self.current_note = None
-            self.update_window_title()
+            self._clear_editor()
+
+    def _clear_editor(self):
+        self.auto_save_timer.stop()
+        self._preview_timer.stop()
+        self.current_note = None
+        with QSignalBlocker(self.edit_tab):
+            self.edit_tab.clear()
+            self.edit_tab.setReadOnly(True)
+        self.preview_tab.clear()
+        self.update_window_title()
+        self._update_status_bar()
 
     def save_current_note(self, save_version=False):
         if self.current_note and not self.edit_tab.isReadOnly():
             content = self.edit_tab.toPlainText()
             self.db_manager.save_note(self.current_note, content, save_version=save_version)
             self.db_manager.update_integrity_hash()
+            self.auto_save_timer.stop()
 
     def _save_with_version(self):
         self.save_current_note(save_version=True)
@@ -828,13 +851,15 @@ class HiddenoteApp(QMainWindow):
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
             title = os.path.splitext(os.path.basename(path))[0]
-            existing = [n[0] for n in self.notes_list.all_notes]
             base = title
             counter = 1
-            while title in existing:
-                title = f"{base} ({counter})"
-                counter += 1
-            self.db_manager.save_note(title, content)
+            while True:
+                try:
+                    self.db_manager.create_note(title, content)
+                    break
+                except sqlite3.IntegrityError:
+                    title = f"{base} ({counter})"
+                    counter += 1
             self.load_notes()
             self._select_note_by_title(title)
         except Exception as e:
@@ -903,7 +928,4 @@ class HiddenoteApp(QMainWindow):
         self.search_input.selectAll()
 
     def filter_notes(self, search_text):
-        if search_text.strip():
-            self.notes_list.filter_notes(search_text)
-        else:
-            self.load_notes(keep_selection=True)
+        self.load_notes(keep_selection=True)

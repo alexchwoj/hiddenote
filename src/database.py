@@ -5,6 +5,7 @@ import os
 import shutil
 import sqlite3
 import sys
+from contextlib import closing
 from datetime import datetime
 
 from cryptography.fernet import Fernet
@@ -55,6 +56,7 @@ class DatabaseManager:
         self._last_version_hash = {}
         self.init_db()
         self.run_migrations()
+        self.create_indexes()
 
     def init_db(self):
         conn = sqlite3.connect(self.db_path)
@@ -117,6 +119,12 @@ class DatabaseManager:
             )
         """)
 
+        conn.commit()
+        conn.close()
+
+    def create_indexes(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_title ON notes(title)")
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at)"
@@ -137,23 +145,21 @@ class DatabaseManager:
         conn.close()
 
     def run_migrations(self):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        for stmt in [
-            "ALTER TABLE user_auth ADD COLUMN hash_algo TEXT DEFAULT 'sha256'",
-            "ALTER TABLE notes ADD COLUMN pinned INTEGER DEFAULT 0",
-            "ALTER TABLE notes ADD COLUMN archived INTEGER DEFAULT 0",
-            "ALTER TABLE notes ADD COLUMN in_trash INTEGER DEFAULT 0",
-            "ALTER TABLE notes ADD COLUMN trash_date TIMESTAMP DEFAULT NULL",
-        ]:
-            try:
-                cursor.execute(stmt)
-                conn.commit()
-            except sqlite3.OperationalError:
-                pass
-
-        conn.close()
+        additions = {
+            "user_auth": {"hash_algo": "TEXT DEFAULT 'sha256'"},
+            "notes": {
+                "pinned": "INTEGER DEFAULT 0",
+                "archived": "INTEGER DEFAULT 0",
+                "in_trash": "INTEGER DEFAULT 0",
+                "trash_date": "TIMESTAMP DEFAULT NULL",
+            },
+        }
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
+            for table, columns in additions.items():
+                existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+                for name, definition in columns.items():
+                    if name not in existing:
+                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
     def _hash_password(self, password):
         if ARGON2_AVAILABLE:
@@ -368,6 +374,21 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
+    def note_exists(self, title):
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            return conn.execute(
+                "SELECT 1 FROM notes WHERE title = ?", (title,)
+            ).fetchone() is not None
+
+    def create_note(self, title, content=""):
+        """Insert a new note; never overwrite an existing title."""
+        encrypted_content = self.encrypt_content(content)
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
+            conn.execute(
+                "INSERT INTO notes (title, content) VALUES (?, ?)",
+                (title, encrypted_content),
+            )
+
     def save_note(self, title, content, save_version=False):
         encrypted_content = self.encrypt_content(content)
         conn = sqlite3.connect(self.db_path)
@@ -463,13 +484,10 @@ class DatabaseManager:
         return notes
 
     def rename_note(self, old_title, new_title):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE notes SET title = ? WHERE title = ?", (new_title, old_title)
-        )
-        conn.commit()
-        conn.close()
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
+            conn.execute(
+                "UPDATE notes SET title = ? WHERE title = ?", (new_title, old_title)
+            )
 
     def delete_note_permanently(self, title):
         conn = sqlite3.connect(self.db_path)

@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QListWidget,
     QLabel,
-    QListWidgetItem,
     QFileDialog,
 )
 from PyQt6.QtCore import Qt
@@ -114,18 +113,7 @@ class NoteListWidget(QListWidget):
         return label.text() if label else None
 
     def filter_notes(self, search_text):
-        self.clear()
-        for note in self.all_notes:
-            title = note[0]
-            if search_text.lower() in title.lower():
-                pinned = note[3] if len(note) > 3 else False
-                archived = note[4] if len(note) > 4 else False
-                tags = note[5] if len(note) > 5 else None
-                item = QListWidgetItem()
-                widget = NoteItemWidget(title, note[1], note[2], pinned, archived, tags)
-                item.setSizeHint(widget.sizeHint())
-                self.addItem(item)
-                self.setItemWidget(item, widget)
+        self.parent_app.search_input.setText(search_text)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Delete:
